@@ -105,7 +105,7 @@ def chart(d1, d2, l1, l2, metric, title, show_trend=False):
     )
     return fig
 
-st.title("🤾 BHB Analytics")
+st.title("BHB Analytics")
 
 # Chargement automatique du fichier
 df = None
