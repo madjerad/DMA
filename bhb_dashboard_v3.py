@@ -2,6 +2,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import numpy as np
 import os
 
 st.set_page_config(page_title="BHB Analytics", layout="wide")
@@ -27,8 +28,17 @@ def aggregate(df, matches):
         'Rapport de force': 'mean'
     }).reset_index()
 
-def chart(d1, d2, l1, l2, metric, title):
+def calculate_trend(x, y):
+    """Calcule la courbe de tendance polynomiale"""
+    # Utiliser un polynôme de degré 3 pour une courbe lisse
+    z = np.polyfit(x, y, 3)
+    p = np.poly1d(z)
+    return p(x)
+
+def chart(d1, d2, l1, l2, metric, title, show_trend=False):
     fig = go.Figure()
+    
+    # Courbe Groupe 1
     if d1 is not None:
         fig.add_trace(go.Scatter(
             x=d1['Minute'], 
@@ -37,6 +47,20 @@ def chart(d1, d2, l1, l2, metric, title):
             line=dict(color='#667eea', width=4),
             hovertemplate='<b>' + l1 + '</b><br>Minute: %{x}<br>' + metric + ': %{y:.3f}<extra></extra>'
         ))
+        
+        # Courbe de tendance pour Groupe 1 (si activée)
+        if show_trend and len(d1) > 3:
+            trend1 = calculate_trend(d1['Minute'].values, d1[metric].values)
+            fig.add_trace(go.Scatter(
+                x=d1['Minute'],
+                y=trend1,
+                name=f'{l1} - Tendance',
+                line=dict(color='#667eea', width=2, dash='dot'),
+                opacity=0.6,
+                hovertemplate='<b>' + l1 + ' Tendance</b><br>Minute: %{x}<br>Tendance: %{y:.3f}<extra></extra>'
+            ))
+    
+    # Courbe Groupe 2
     if d2 is not None:
         fig.add_trace(go.Scatter(
             x=d2['Minute'], 
@@ -45,15 +69,40 @@ def chart(d1, d2, l1, l2, metric, title):
             line=dict(color='#f5576c', width=4, dash='dash'),
             hovertemplate='<b>' + l2 + '</b><br>Minute: %{x}<br>' + metric + ': %{y:.3f}<extra></extra>'
         ))
+        
+        # Courbe de tendance pour Groupe 2 (si activée)
+        if show_trend and len(d2) > 3:
+            trend2 = calculate_trend(d2['Minute'].values, d2[metric].values)
+            fig.add_trace(go.Scatter(
+                x=d2['Minute'],
+                y=trend2,
+                name=f'{l2} - Tendance',
+                line=dict(color='#f5576c', width=2, dash='dot'),
+                opacity=0.6,
+                hovertemplate='<b>' + l2 + ' Tendance</b><br>Minute: %{x}<br>Tendance: %{y:.3f}<extra></extra>'
+            ))
+    
+    # Ligne de référence pour Rapport de Force
     if 'Rapport' in metric:
         fig.add_hline(y=0, line_dash="dot", line_color="gray", 
-                     annotation_text="Équilibre", annotation_position="right")
+                     annotation_text="Équilibre", annotation_position="right",
+                     line_width=1, opacity=0.5)
+    
     fig.update_layout(
         title=title, 
         height=600,
         hovermode='x unified',
         plot_bgcolor='white',
-        font=dict(family='Inter, sans-serif')
+        font=dict(family='Inter, sans-serif'),
+        xaxis=dict(title="Minute de jeu", gridcolor='rgba(0,0,0,0.1)'),
+        yaxis=dict(title=metric, gridcolor='rgba(0,0,0,0.1)'),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.2,
+            xanchor="center",
+            x=0.5
+        )
     )
     return fig
 
@@ -162,34 +211,14 @@ if d1 is None and d2 is None:
 
 # Graphiques
 with t1:
-    st.plotly_chart(chart(d1, d2, label1, label2, 'DMA BHB', 'Évolution DMA BHB'), use_container_width=True)
-    with st.expander("ℹ️ À propos de la DMA BHB"):
-        st.markdown("""
-        **DMA BHB** (Différence de Moyenne Mobile BHB) :
-        - Mesure la dynamique offensive de BHB
-        - Valeurs hautes = Bonne efficacité récente
-        - Valeurs basses = Baisse de performance
-        """)
+    st.plotly_chart(chart(d1, d2, label1, label2, 'DMA BHB', 'Évolution DMA BHB', show_trend=False), use_container_width=True)
+    
 
 with t2:
-    st.plotly_chart(chart(d1, d2, label1, label2, 'DMA ADV', 'Évolution DMA Adversaire'), use_container_width=True)
-    with st.expander("ℹ️ À propos de la DMA ADV"):
-        st.markdown("""
-        **DMA ADV** (Différence de Moyenne Mobile Adversaire) :
-        - Mesure la dynamique offensive des adversaires
-        - Valeurs hautes = Adversaire performant
-        - Valeurs basses = Adversaire en difficulté
-        """)
+    st.plotly_chart(chart(d1, d2, label1, label2, 'DMA ADV', 'Évolution DMA Adversaire', show_trend=False), use_container_width=True)
+    
 
 with t3:
-    st.plotly_chart(chart(d1, d2, label1, label2, 'Rapport de force', 'Évolution du Rapport de Force'), use_container_width=True)
-    with st.expander("ℹ️ À propos du Rapport de Force"):
-        st.markdown("""
-        **Rapport de Force** = DMA BHB - DMA ADV :
-        - > 0 🟢 : BHB domine
-        - < 0 🔴 : Adversaire domine
-        - ≈ 0 ⚪ : Équilibre
-        """)
-
-st.markdown("---")
-st.markdown("*BHB Analytics v3.1 | Dashboard Handball*")
+    st.plotly_chart(chart(d1, d2, label1, label2, 'Rapport de force', 'Évolution du Rapport de Force', show_trend=True), use_container_width=True)
+   
+st.markdown("*BHB Analytics v3.2 | Dashboard Handball*")
