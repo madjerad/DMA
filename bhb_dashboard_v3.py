@@ -30,7 +30,6 @@ def aggregate(df, matches):
 
 def calculate_trend(x, y):
     """Calcule la courbe de tendance polynomiale"""
-    # Utiliser un polynôme de degré 3 pour une courbe lisse
     z = np.polyfit(x, y, 3)
     p = np.poly1d(z)
     return p(x)
@@ -106,29 +105,22 @@ def chart(d1, d2, l1, l2, metric, title, show_trend=False):
     )
     return fig
 
-st.title("BHB Analytics")
+st.title("🤾 BHB Analytics")
 
 # Chargement automatique du fichier
 df = None
 
-# Essayer de charger le fichier par défaut du repository
+# Charger uniquement le fichier du repository
 if os.path.exists('Base_Donnees_Handball.xlsx'):
     df = load_data('Base_Donnees_Handball.xlsx')
-    st.sidebar.success("✅ Données chargées du repository")
+    st.sidebar.success("✅ Données chargées")
 else:
-    st.sidebar.warning("⚠️ Fichier Base_Donnees_Handball.xlsx non trouvé")
-
-# Option d'upload si besoin
-with st.sidebar:
-    st.markdown("---")
-    st.markdown("### 📁 Charger un autre fichier (optionnel)")
-    uploaded = st.file_uploader("", type=['xlsx'], label_visibility="collapsed")
-    if uploaded:
-        df = load_data(uploaded)
-        st.success("✅ Fichier uploadé chargé")
+    st.sidebar.error("❌ Fichier Base_Donnees_Handball.xlsx non trouvé")
+    st.error("❌ Impossible de charger les données. Vérifiez que le fichier Base_Donnees_Handball.xlsx est dans le repository.")
+    st.stop()
 
 if df is None:
-    st.error("❌ Impossible de charger les données")
+    st.error("❌ Erreur lors du chargement des données")
     st.stop()
 
 # Sidebar - Sélection des groupes
@@ -136,56 +128,56 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 🔵 GROUPE 1")
     
-    # Mode de sélection Groupe 1
+    # Mode de sélection Groupe 1 - ORDRE INVERSÉ
     mode1 = st.radio(
         "Mode de sélection",
-        ["📋 Matchs spécifiques", "🏠 Par Lieu", "⚡ Par Phase"],
+        ["⚡ Par Phase", "🏠 Par Lieu", "📋 Matchs spécifiques"],
         key="mode1"
     )
     
-    if mode1 == "📋 Matchs spécifiques":
+    if mode1 == "⚡ Par Phase":
+        phase1 = st.selectbox("Sélectionner la phase", ['ALLER', 'RETOUR'], key="phase1")
+        matches1 = df[df['Phase'] == phase1]['Match'].unique().tolist()
+        st.info(f"📊 {len(matches1)} matchs sélectionnés")
+    elif mode1 == "🏠 Par Lieu":
+        lieu1 = st.selectbox("Sélectionner le lieu", ['Domicile', 'Extérieur'], key="lieu1")
+        matches1 = df[df['Lieu'] == lieu1]['Match'].unique().tolist()
+        st.info(f"📊 {len(matches1)} matchs sélectionnés")
+    else:  # Matchs spécifiques
         matches1 = st.multiselect(
             "Sélectionner les matchs",
             sorted(df['Match'].unique()),
             default=[sorted(df['Match'].unique())[0]] if len(df['Match'].unique()) > 0 else [],
             key="m1"
         )
-    elif mode1 == "🏠 Par Lieu":
-        lieu1 = st.selectbox("Sélectionner le lieu", ['Domicile', 'Extérieur'], key="lieu1")
-        matches1 = df[df['Lieu'] == lieu1]['Match'].unique().tolist()
-        st.info(f"📊 {len(matches1)} matchs sélectionnés")
-    else:  # Par Phase
-        phase1 = st.selectbox("Sélectionner la phase", ['ALLER', 'RETOUR'], key="phase1")
-        matches1 = df[df['Phase'] == phase1]['Match'].unique().tolist()
-        st.info(f"📊 {len(matches1)} matchs sélectionnés")
     
     label1 = st.text_input("Nom du groupe", "Groupe 1", key="label1")
     
     st.markdown("---")
     st.markdown("### 🔴 GROUPE 2")
     
-    # Mode de sélection Groupe 2
+    # Mode de sélection Groupe 2 - ORDRE INVERSÉ
     mode2 = st.radio(
         "Mode de sélection",
-        ["📋 Matchs spécifiques", "🏠 Par Lieu", "⚡ Par Phase"],
+        ["⚡ Par Phase", "🏠 Par Lieu", "📋 Matchs spécifiques"],
         key="mode2"
     )
     
-    if mode2 == "📋 Matchs spécifiques":
+    if mode2 == "⚡ Par Phase":
+        phase2 = st.selectbox("Sélectionner la phase", ['ALLER', 'RETOUR'], index=1, key="phase2")
+        matches2 = df[df['Phase'] == phase2]['Match'].unique().tolist()
+        st.info(f"📊 {len(matches2)} matchs sélectionnés")
+    elif mode2 == "🏠 Par Lieu":
+        lieu2 = st.selectbox("Sélectionner le lieu", ['Domicile', 'Extérieur'], index=1, key="lieu2")
+        matches2 = df[df['Lieu'] == lieu2]['Match'].unique().tolist()
+        st.info(f"📊 {len(matches2)} matchs sélectionnés")
+    else:  # Matchs spécifiques
         matches2 = st.multiselect(
             "Sélectionner les matchs",
             sorted(df['Match'].unique()),
             default=[sorted(df['Match'].unique())[1]] if len(df['Match'].unique()) > 1 else [],
             key="m2"
         )
-    elif mode2 == "🏠 Par Lieu":
-        lieu2 = st.selectbox("Sélectionner le lieu", ['Domicile', 'Extérieur'], index=1, key="lieu2")
-        matches2 = df[df['Lieu'] == lieu2]['Match'].unique().tolist()
-        st.info(f"📊 {len(matches2)} matchs sélectionnés")
-    else:  # Par Phase
-        phase2 = st.selectbox("Sélectionner la phase", ['ALLER', 'RETOUR'], index=1, key="phase2")
-        matches2 = df[df['Phase'] == phase2]['Match'].unique().tolist()
-        st.info(f"📊 {len(matches2)} matchs sélectionnés")
     
     label2 = st.text_input("Nom du groupe", "Groupe 2", key="label2")
 
@@ -212,13 +204,14 @@ if d1 is None and d2 is None:
 # Graphiques
 with t1:
     st.plotly_chart(chart(d1, d2, label1, label2, 'DMA BHB', 'Évolution DMA BHB', show_trend=False), use_container_width=True)
-    
 
 with t2:
     st.plotly_chart(chart(d1, d2, label1, label2, 'DMA ADV', 'Évolution DMA Adversaire', show_trend=False), use_container_width=True)
-    
 
 with t3:
-    st.plotly_chart(chart(d1, d2, label1, label2, 'Rapport de force', 'Évolution du Rapport de Force', show_trend=True), use_container_width=True)
-   
-st.markdown("*BHB Analytics v3.2 | Dashboard Handball*")
+    # Option pour afficher/masquer la courbe de tendance
+    show_trend = st.checkbox("Afficher les courbes de tendance", value=True)
+    st.plotly_chart(chart(d1, d2, label1, label2, 'Rapport de force', 'Évolution du Rapport de Force', show_trend=show_trend), use_container_width=True)
+
+st.markdown("---")
+st.markdown("*BHB Analytics v3.3 | Dashboard Handball*")
