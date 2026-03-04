@@ -207,9 +207,31 @@ def calculate_general_stats(df, matches):
 
 
 def calculate_shooter_stats(df, matches):
-    """Calcule stats buteurs - VERSION OPTIMISÉE"""
+    """Calcule stats buteurs - VERSION OPTIMISÉE avec mapping joueurs"""
     if df is None or len(matches) == 0:
         return None
+    
+    # Mapping des joueurs : Numéro -> Nom Prénom
+    player_mapping = {
+        2: "NAUDIN Paul",
+        3: "NAUDIN Théo",
+        25: "FAVERIN Léan",
+        7: "PLISSONNIER Jean",
+        8: "PANIC Milan",
+        9: "MINANA Lilian",
+        10: "GREGULSKI Vincent",
+        12: "STEPHAN Corentin",
+        13: "THELCIDE Axel",
+        15: "COSNIER Lubin",
+        16: "MAI François",
+        19: "GOSTOMSKI Sasha",
+        21: "CHAZALON Marius",
+        24: "MINY Gabin",
+        4: "HERMAND Mathieu",
+        33: "NAUDIN Hugo",
+        78: "LAURENCE Samuel",
+        92: "PHAROSE Kylian"
+    }
     
     filtered_df = df[df['Match'].isin(matches)].copy()
     if len(filtered_df) == 0:
@@ -219,26 +241,39 @@ def calculate_shooter_stats(df, matches):
     if len(bhb_data) == 0:
         return None
     
+    # EXCLURE les lignes avec Tireur = 0, NaN ou vide (déchets techniques)
+    bhb_data = bhb_data[
+        (bhb_data['Tireur'].notna()) & 
+        (bhb_data['Tireur'] != 0) & 
+        (bhb_data['Tireur'] != '')
+    ].copy()
+    
+    if len(bhb_data) == 0:
+        return None
+    
     # Ajouter colonne mi-temps
     bhb_data['MT'] = (bhb_data['Minute'] > 30).astype(int) + 1
     
-    # Remplacer Tireur vide
-    bhb_data['Tireur'] = bhb_data['Tireur'].fillna('(Inconnu)')
-    bhb_data['Tireur'] = bhb_data['Tireur'].replace(0, '(Inconnu)')
+    # Convertir Tireur en int
+    bhb_data['Tireur'] = bhb_data['Tireur'].astype(int)
     
     # Grouper par tireur et mi-temps
     grouped = bhb_data.groupby(['Tireur', 'MT']).agg({
         'Issue': ['count', 'sum']
     }).reset_index()
     
-    grouped.columns = ['Joueur', 'MT', 'Tirs', 'Buts']
+    grouped.columns = ['Numero', 'MT', 'Tirs', 'Buts']
     
     # Pivot pour avoir MT1 et MT2
-    pivot = grouped.pivot(index='Joueur', columns='MT', values=['Tirs', 'Buts']).fillna(0)
+    pivot = grouped.pivot(index='Numero', columns='MT', values=['Tirs', 'Buts']).fillna(0)
     
     # Calculer totaux et efficacités
     result = pd.DataFrame()
-    result['Joueur'] = pivot.index
+    result['Numero'] = pivot.index
+    
+    # Mapper le numéro au nom complet
+    result['Joueur'] = result['Numero'].map(player_mapping).fillna('Inconnu')
+    
     result['Tirs 1'] = pivot[('Tirs', 1)].values.astype(int)
     result['Buts 1'] = pivot[('Buts', 1)].values.astype(int)
     result['Eff 1'] = (result['Buts 1'] / result['Tirs 1']).where(result['Tirs 1'] > 0, 0)
@@ -249,7 +284,10 @@ def calculate_shooter_stats(df, matches):
     result['Buts Total'] = result['Buts 1'] + result['Buts 2']
     result['Eff Total'] = (result['Buts Total'] / result['Tirs Total']).where(result['Tirs Total'] > 0, 0)
     
-    # Trier par buts totaux
+    # Réorganiser les colonnes : Joueur en premier
+    result = result[['Joueur', 'Tirs 1', 'Buts 1', 'Eff 1', 'Tirs 2', 'Buts 2', 'Eff 2', 'Tirs Total', 'Buts Total', 'Eff Total']]
+    
+    # Trier par buts totaux décroissant
     result = result.sort_values('Buts Total', ascending=False).reset_index(drop=True)
     
     return result
