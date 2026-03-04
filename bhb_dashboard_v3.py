@@ -34,8 +34,17 @@ def calculate_trend(x, y):
     return p(x)
 
 def calculate_general_stats(df, matches):
-    """Calcule les statistiques générales en MOYENNE PAR MATCH (DMA déjà en moyenne).
-    Note: les ratios/efficacités sont moyennés par match (non pondérés).
+    """Calcule les statistiques générales.
+
+    Objectif (sélection multi-matchs) :
+    - Volumes : moyenne par match (buts, possessions, déchets, INF/SUP, écarts, rythme, DMA, etc.)
+    - Ratios / efficacités : pondérés (ratio des totaux)
+      * Ratio But/Poss = ΣButsBHB / ΣPossBHB
+      * Eff Def = (Σ(PossADV − ButsADV)) / ΣPossADV
+      * Eff Tir = ΣButsBHB / Σ(TirsEffectifs), TirsEffectifs = PossBHB − Déchet
+      * Ratio Perte = ΣDéchet / ΣPossBHB
+      * Moy Ecart INF/SUP = ΣEcart / ΣNb (pondéré par le nombre de séquences)
+    - INF/SUP : calculés par match (évite les artefacts aux frontières entre matchs)
     """
     if df is None or len(matches) == 0:
         return None
@@ -45,7 +54,7 @@ def calculate_general_stats(df, matches):
         return None
 
     def _period_stats(period_data):
-        """Stats d'une période pour UN match (mt1 / mt2 / total)."""
+        """Stats d'une période pour UN match (mi-temps 1 / mi-temps 2 / total)."""
         if period_data is None or len(period_data) == 0:
             return None
 
@@ -59,41 +68,27 @@ def calculate_general_stats(df, matches):
         poss_adv = float(len(adv_data))
         poss_total = float(len(period_data))
 
-        stats = {}
-        stats['Buts BHB'] = buts_bhb
-        stats['Buts ADV'] = buts_adv
-        stats['Poss BHB'] = poss_bhb
-        stats['Poss ADV'] = poss_adv
-        stats['Poss Total'] = poss_total
-
-        # Ratios / Eff (calculés sur le match, puis moyennés entre matchs)
-        stats['Ratio But/Poss'] = (buts_bhb / poss_bhb) if poss_bhb > 0 else 0.0
-        stats['Eff Def'] = ((poss_adv - buts_adv) / poss_adv) if poss_adv > 0 else 0.0
-
-        # Déchet
+        # Déchet (tireur vide / 0)
         dechet = float(len(bhb_data[(bhb_data['Tireur'].isna()) | (bhb_data['Tireur'] == 0)]))
-        stats['Déchet'] = dechet
-
         tirs_effectifs = poss_bhb - dechet
-        stats['Eff Tir'] = (buts_bhb / tirs_effectifs) if tirs_effectifs > 0 else 0.0
-        stats['Ratio Perte'] = (dechet / poss_bhb) if poss_bhb > 0 else 0.0
 
-        # DMA (déjà des moyennes)
+        # DMA / RdF
         dma_bhb_vals = bhb_data['DMA BHB'].dropna()
         dma_adv_vals = adv_data['DMA ADV'].dropna()
 
-        stats['Moy DMA BHB'] = float(dma_bhb_vals.mean()) if len(dma_bhb_vals) > 0 else 0.0
-        stats['ET DMA BHB'] = float(dma_bhb_vals.std()) if len(dma_bhb_vals) > 0 else 0.0
-        stats['Moy DMA ADV'] = float(dma_adv_vals.mean()) if len(dma_adv_vals) > 0 else 0.0
-        stats['ET DMA ADV'] = float(dma_adv_vals.std()) if len(dma_adv_vals) > 0 else 0.0
-        stats['RdF'] = stats['Moy DMA BHB'] - stats['Moy DMA ADV']
+        moy_dma_bhb = float(dma_bhb_vals.mean()) if len(dma_bhb_vals) > 0 else 0.0
+        et_dma_bhb = float(dma_bhb_vals.std()) if len(dma_bhb_vals) > 0 else 0.0
+        moy_dma_adv = float(dma_adv_vals.mean()) if len(dma_adv_vals) > 0 else 0.0
+        et_dma_adv = float(dma_adv_vals.std()) if len(dma_adv_vals) > 0 else 0.0
+        rdf = moy_dma_bhb - moy_dma_adv
 
-        # INF / SUP : comptage par match (important)
+        # INF/SUP : calcul par match (important)
         period_sorted = period_data.sort_index()
 
+        # INF
         inf_mask = (period_sorted['INF'] == 'INF')
         inf_changes = inf_mask.astype(int).diff().fillna(0)
-        nb_inf = float((inf_changes == 1).sum())
+        nb_inf = float((inf_changes == 1).sum())  # débuts de séquences
 
         inf_possessions = period_sorted[inf_mask]
         if len(inf_possessions) > 0:
@@ -103,6 +98,7 @@ def calculate_general_stats(df, matches):
         else:
             ecart_inf = 0.0
 
+        # SUP
         sup_mask = (period_sorted['SUP'] == 'SUP')
         sup_changes = sup_mask.astype(int).diff().fillna(0)
         nb_sup = float((sup_changes == 1).sum())
@@ -115,16 +111,31 @@ def calculate_general_stats(df, matches):
         else:
             ecart_sup = 0.0
 
-        stats['Nb INF'] = nb_inf
-        stats['Nb SUP'] = nb_sup
-        stats['Ecart INF'] = ecart_inf
-        stats['Ecart SUP'] = ecart_sup
-        stats['Moy Ecart INF'] = (ecart_inf / nb_inf) if nb_inf > 0 else 0.0
-        stats['Moy Ecart SUP'] = (ecart_sup / nb_sup) if nb_sup > 0 else 0.0
+        return {
+            # Volumes
+            'Buts BHB': buts_bhb,
+            'Buts ADV': buts_adv,
+            'Poss BHB': poss_bhb,
+            'Poss ADV': poss_adv,
+            'Poss Total': poss_total,
+            'Déchet': dechet,
+            'Tirs Effectifs': float(tirs_effectifs),
 
-        return stats
+            # DMA / RdF
+            'Moy DMA BHB': moy_dma_bhb,
+            'ET DMA BHB': et_dma_bhb,
+            'Moy DMA ADV': moy_dma_adv,
+            'ET DMA ADV': et_dma_adv,
+            'RdF': rdf,
 
-    # Collecte match par match
+            # INF/SUP
+            'Nb INF': nb_inf,
+            'Nb SUP': nb_sup,
+            'Ecart INF': ecart_inf,
+            'Ecart SUP': ecart_sup,
+        }
+
+    # Collecte match par match, par période
     per_match = {'1': [], '2': [], 'T': []}
 
     for m in matches:
@@ -140,7 +151,6 @@ def calculate_general_stats(df, matches):
         sT = _period_stats(mdf)
 
         if s1 is not None:
-            # Rythme: possessions / durée (par match)
             s1['Rythme'] = float(len(mt1)) / 30.0
             per_match['1'].append(s1)
         if s2 is not None:
@@ -150,18 +160,51 @@ def calculate_general_stats(df, matches):
             sT['Rythme'] = float(len(mdf)) / 60.0
             per_match['T'].append(sT)
 
-    # Agrégation: moyenne simple entre matchs
+    # Agrégation finale
     out = {}
+
+    # clés ratios/efficacités à recalculer en pondéré
+    ratio_out_keys = ['Ratio But/Poss', 'Eff Def', 'Eff Tir', 'Ratio Perte', 'Moy Ecart INF', 'Moy Ecart SUP']
+
     for suffix, rows in per_match.items():
         if len(rows) == 0:
             continue
 
-        keys = rows[0].keys()
-        for k in keys:
+        # 1) Volumes en moyenne par match (incluant DMA/RdF/ET/Rythme)
+        # On exclut uniquement les ratios qu'on recalcule après.
+        all_keys = set(rows[0].keys())
+        # Ces clés ne sont pas affichées directement (interne)
+        internal_exclude = {'Tirs Effectifs'}
+        volume_keys = [k for k in all_keys if k not in set(ratio_out_keys) and k not in internal_exclude]
+
+        for k in volume_keys:
             vals = [r.get(k, 0.0) for r in rows]
             out[f'{k} {suffix}'] = float(np.mean(vals)) if len(vals) > 0 else 0.0
 
+        # 2) Ratios pondérés (ratio des totaux)
+        sum_buts_bhb = sum(r.get('Buts BHB', 0.0) for r in rows)
+        sum_buts_adv = sum(r.get('Buts ADV', 0.0) for r in rows)
+        sum_poss_bhb = sum(r.get('Poss BHB', 0.0) for r in rows)
+        sum_poss_adv = sum(r.get('Poss ADV', 0.0) for r in rows)
+        sum_dechet = sum(r.get('Déchet', 0.0) for r in rows)
+        sum_tirs_effectifs = sum(r.get('Tirs Effectifs', 0.0) for r in rows)
+
+        sum_ecart_inf = sum(r.get('Ecart INF', 0.0) for r in rows)
+        sum_nb_inf = sum(r.get('Nb INF', 0.0) for r in rows)
+
+        sum_ecart_sup = sum(r.get('Ecart SUP', 0.0) for r in rows)
+        sum_nb_sup = sum(r.get('Nb SUP', 0.0) for r in rows)
+
+        out[f'Ratio But/Poss {suffix}'] = (sum_buts_bhb / sum_poss_bhb) if sum_poss_bhb > 0 else 0.0
+        out[f'Eff Def {suffix}'] = ((sum_poss_adv - sum_buts_adv) / sum_poss_adv) if sum_poss_adv > 0 else 0.0
+        out[f'Eff Tir {suffix}'] = (sum_buts_bhb / sum_tirs_effectifs) if sum_tirs_effectifs > 0 else 0.0
+        out[f'Ratio Perte {suffix}'] = (sum_dechet / sum_poss_bhb) if sum_poss_bhb > 0 else 0.0
+
+        out[f'Moy Ecart INF {suffix}'] = (sum_ecart_inf / sum_nb_inf) if sum_nb_inf > 0 else 0.0
+        out[f'Moy Ecart SUP {suffix}'] = (sum_ecart_sup / sum_nb_sup) if sum_nb_sup > 0 else 0.0
+
     return out
+
 
 def calculate_shooter_stats(df, matches):
     """Calcule stats buteurs - VERSION OPTIMISÉE"""
@@ -252,7 +295,7 @@ def chart(d1, d2, l1, l2, metric, title, show_trend=False):
     )
     return fig
 
-st.title("🤾 BHB Analytics")
+st.title(" BHB Analytics")
 
 # Chargement
 df = None
@@ -343,25 +386,20 @@ with t4:
         stats1 = calculate_general_stats(df, matches1)
         if stats1:
             data1 = [
-              
-                {'Indicateur': 'Score','1ère MT': f"{stats1['Buts BHB 1']:.1f}-{stats1['Buts ADV 1']:.1f}",'2ème MT': f"{stats1['Buts BHB 2']:.1f}-{stats1['Buts ADV 2']:.1f}",
- 'Total':  f"{stats1['Buts BHB T']:.1f}-{stats1['Buts ADV T']:.1f}"},
-{'Indicateur': 'Buts Pour',
- '1ère MT': f"{stats1['Buts BHB 1']:.1f}", '2ème MT': f"{stats1['Buts BHB 2']:.1f}", 'Total': f"{stats1['Buts BHB T']:.1f}"},
-{'Indicateur': 'Buts Contre',
- '1ère MT': f"{stats1['Buts ADV 1']:.1f}", '2ème MT': f"{stats1['Buts ADV 2']:.1f}", 'Total': f"{stats1['Buts ADV T']:.1f}"},
-{'Indicateur': 'Nb Possessions',
- '1ère MT': f"{stats1['Poss Total 1']:.1f}", '2ème MT': f"{stats1['Poss Total 2']:.1f}", 'Total': f"{stats1['Poss Total T']:.1f}"},
-{'Indicateur': 'Déchet Tech',
- '1ère MT': f"{stats1['Déchet 1']:.1f}", '2ème MT': f"{stats1['Déchet 2']:.1f}", 'Total': f"{stats1['Déchet T']:.1f}"},
-{'Indicateur': 'Nb INF',
- '1ère MT': f"{stats1['Nb INF 1']:.1f}", '2ème MT': f"{stats1['Nb INF 2']:.1f}", 'Total': f"{stats1['Nb INF T']:.1f}"},
-{'Indicateur': 'Écart INF',
- '1ère MT': f"{stats1['Ecart INF 1']:.1f}", '2ème MT': f"{stats1['Ecart INF 2']:.1f}", 'Total': f"{stats1['Ecart INF T']:.1f}"},
-{'Indicateur': 'Nb SUP',
- '1ère MT': f"{stats1['Nb SUP 1']:.1f}", '2ème MT': f"{stats1['Nb SUP 2']:.1f}", 'Total': f"{stats1['Nb SUP T']:.1f}"},
-{'Indicateur': 'Écart SUP',
- '1ère MT': f"{stats1['Ecart SUP 1']:.1f}", '2ème MT': f"{stats1['Ecart SUP 2']:.1f}", 'Total': f"{stats1['Ecart SUP T']:.1f}"},
+                {'Indicateur': 'Score', '1ère MT': f"{stats1['Buts BHB 1']:.1f}-{stats1['Buts ADV 1']:.1f}", 
+                 '2ème MT': f"{stats1['Buts BHB 2']:.1f}-{stats1['Buts ADV 2']:.1f}", 'Total': f"{stats1['Buts BHB T']:.1f}-{stats1['Buts ADV T']:.1f}"},
+                {'Indicateur': 'Buts Pour', '1ère MT': f"{stats1['Buts BHB 1']:.1f}", '2ème MT': f"{stats1['Buts BHB 2']:.1f}", 'Total': f"{stats1['Buts BHB T']:.1f}"},
+                {'Indicateur': 'Buts Contre', '1ère MT': f"{stats1['Buts ADV 1']:.1f}", '2ème MT': f"{stats1['Buts ADV 2']:.1f}", 'Total': f"{stats1['Buts ADV T']:.1f}"},
+                {'Indicateur': 'Nb Possessions', '1ère MT': f"{stats1['Poss Total 1']:.1f}", '2ème MT': f"{stats1['Poss Total 2']:.1f}", 'Total': f"{stats1['Poss Total T']:.1f}"},
+                {'Indicateur': 'Rythme', '1ère MT': f"{stats1['Rythme 1']:.2f}", '2ème MT': f"{stats1['Rythme 2']:.2f}", 'Total': f"{stats1['Rythme T']:.2f}"},
+                {'Indicateur': 'Ratio But/Poss', '1ère MT': f"{stats1['Ratio But/Poss 1']:.1%}", '2ème MT': f"{stats1['Ratio But/Poss 2']:.1%}", 'Total': f"{stats1['Ratio But/Poss T']:.1%}"},
+                {'Indicateur': 'Eff Défensive', '1ère MT': f"{stats1['Eff Def 1']:.1%}", '2ème MT': f"{stats1['Eff Def 2']:.1%}", 'Total': f"{stats1['Eff Def T']:.1%}"},
+                {'Indicateur': 'Eff Tir', '1ère MT': f"{stats1['Eff Tir 1']:.1%}", '2ème MT': f"{stats1['Eff Tir 2']:.1%}", 'Total': f"{stats1['Eff Tir T']:.1%}"},
+                {'Indicateur': 'Déchet Tech', '1ère MT': f"{stats1['Déchet 1']:.1f}", '2ème MT': f"{stats1['Déchet 2']:.1f}", 'Total': f"{stats1['Déchet T']:.1f}"},
+                {'Indicateur': 'Nb INF', '1ère MT': f"{stats1['Nb INF 1']:.1f}", '2ème MT': f"{stats1['Nb INF 2']:.1f}", 'Total': f"{stats1['Nb INF T']:.1f}"},
+                {'Indicateur': 'Écart INF', '1ère MT': f"{stats1['Ecart INF 1']:.1f}", '2ème MT': f"{stats1['Ecart INF 2']:.1f}", 'Total': f"{stats1['Ecart INF T']:.1f}"},
+                {'Indicateur': 'Nb SUP', '1ère MT': f"{stats1['Nb SUP 1']:.1f}", '2ème MT': f"{stats1['Nb SUP 2']:.1f}", 'Total': f"{stats1['Nb SUP T']:.1f}"},
+                {'Indicateur': 'Écart SUP', '1ère MT': f"{stats1['Ecart SUP 1']:.1f}", '2ème MT': f"{stats1['Ecart SUP 2']:.1f}", 'Total': f"{stats1['Ecart SUP T']:.1f}"},
                 {'Indicateur': 'Moy DMA BHB', '1ère MT': f"{stats1['Moy DMA BHB 1']:.3f}", '2ème MT': f"{stats1['Moy DMA BHB 2']:.3f}", 'Total': f"{stats1['Moy DMA BHB T']:.3f}"},
                 {'Indicateur': 'Moy DMA ADV', '1ère MT': f"{stats1['Moy DMA ADV 1']:.3f}", '2ème MT': f"{stats1['Moy DMA ADV 2']:.3f}", 'Total': f"{stats1['Moy DMA ADV T']:.3f}"},
                 {'Indicateur': 'Rapport de Force', '1ère MT': f"{stats1['RdF 1']:.3f}", '2ème MT': f"{stats1['RdF 2']:.3f}", 'Total': f"{stats1['RdF T']:.3f}"},
@@ -373,25 +411,20 @@ with t4:
         stats2 = calculate_general_stats(df, matches2)
         if stats2:
             data2 = [
-               
-                {'Indicateur': 'Score','1ère MT': f"{stats2['Buts BHB 1']:.1f}-{stats2['Buts ADV 1']:.1f}",'2ème MT': f"{stats2['Buts BHB 2']:.1f}-{stats2['Buts ADV 2']:.1f}",
- 'Total':  f"{stats2['Buts BHB T']:.1f}-{stats2['Buts ADV T']:.1f}"},
-{'Indicateur': 'Buts Pour',
- '1ère MT': f"{stats2['Buts BHB 1']:.1f}", '2ème MT': f"{stats2['Buts BHB 2']:.1f}", 'Total': f"{stats2['Buts BHB T']:.1f}"},
-{'Indicateur': 'Buts Contre',
- '1ère MT': f"{stats2['Buts ADV 1']:.1f}", '2ème MT': f"{stats2['Buts ADV 2']:.1f}", 'Total': f"{stats2['Buts ADV T']:.1f}"},
-{'Indicateur': 'Nb Possessions',
- '1ère MT': f"{stats2['Poss Total 1']:.1f}", '2ème MT': f"{stats2['Poss Total 2']:.1f}", 'Total': f"{stats2['Poss Total T']:.1f}"},
-{'Indicateur': 'Déchet Tech',
- '1ère MT': f"{stats2['Déchet 1']:.1f}", '2ème MT': f"{stats2['Déchet 2']:.1f}", 'Total': f"{stats2['Déchet T']:.1f}"},
-{'Indicateur': 'Nb INF',
- '1ère MT': f"{stats2['Nb INF 1']:.1f}", '2ème MT': f"{stats2['Nb INF 2']:.1f}", 'Total': f"{stats2['Nb INF T']:.1f}"},
-{'Indicateur': 'Écart INF',
- '1ère MT': f"{stats2['Ecart INF 1']:.1f}", '2ème MT': f"{stats2['Ecart INF 2']:.1f}", 'Total': f"{stats2['Ecart INF T']:.1f}"},
-{'Indicateur': 'Nb SUP',
- '1ère MT': f"{stats2['Nb SUP 1']:.1f}", '2ème MT': f"{stats2['Nb SUP 2']:.1f}", 'Total': f"{stats2['Nb SUP T']:.1f}"},
-{'Indicateur': 'Écart SUP',
- '1ère MT': f"{stats2['Ecart SUP 1']:.1f}", '2ème MT': f"{stats2['Ecart SUP 2']:.1f}", 'Total': f"{stats2['Ecart SUP T']:.1f}"},
+                {'Indicateur': 'Score', '1ère MT': f"{stats2['Buts BHB 1']:.1f}-{stats2['Buts ADV 1']:.1f}", 
+                 '2ème MT': f"{stats2['Buts BHB 2']:.1f}-{stats2['Buts ADV 2']:.1f}", 'Total': f"{stats2['Buts BHB T']:.1f}-{stats2['Buts ADV T']:.1f}"},
+                {'Indicateur': 'Buts Pour', '1ère MT': f"{stats2['Buts BHB 1']:.1f}", '2ème MT': f"{stats2['Buts BHB 2']:.1f}", 'Total': f"{stats2['Buts BHB T']:.1f}"},
+                {'Indicateur': 'Buts Contre', '1ère MT': f"{stats2['Buts ADV 1']:.1f}", '2ème MT': f"{stats2['Buts ADV 2']:.1f}", 'Total': f"{stats2['Buts ADV T']:.1f}"},
+                {'Indicateur': 'Nb Possessions', '1ère MT': f"{stats2['Poss Total 1']:.1f}", '2ème MT': f"{stats2['Poss Total 2']:.1f}", 'Total': f"{stats2['Poss Total T']:.1f}"},
+                {'Indicateur': 'Rythme', '1ère MT': f"{stats2['Rythme 1']:.2f}", '2ème MT': f"{stats2['Rythme 2']:.2f}", 'Total': f"{stats2['Rythme T']:.2f}"},
+                {'Indicateur': 'Ratio But/Poss', '1ère MT': f"{stats2['Ratio But/Poss 1']:.1%}", '2ème MT': f"{stats2['Ratio But/Poss 2']:.1%}", 'Total': f"{stats2['Ratio But/Poss T']:.1%}"},
+                {'Indicateur': 'Eff Défensive', '1ère MT': f"{stats2['Eff Def 1']:.1%}", '2ème MT': f"{stats2['Eff Def 2']:.1%}", 'Total': f"{stats2['Eff Def T']:.1%}"},
+                {'Indicateur': 'Eff Tir', '1ère MT': f"{stats2['Eff Tir 1']:.1%}", '2ème MT': f"{stats2['Eff Tir 2']:.1%}", 'Total': f"{stats2['Eff Tir T']:.1%}"},
+                {'Indicateur': 'Déchet Tech', '1ère MT': f"{stats2['Déchet 1']:.1f}", '2ème MT': f"{stats2['Déchet 2']:.1f}", 'Total': f"{stats2['Déchet T']:.1f}"},
+                {'Indicateur': 'Nb INF', '1ère MT': f"{stats2['Nb INF 1']:.1f}", '2ème MT': f"{stats2['Nb INF 2']:.1f}", 'Total': f"{stats2['Nb INF T']:.1f}"},
+                {'Indicateur': 'Écart INF', '1ère MT': f"{stats2['Ecart INF 1']:.1f}", '2ème MT': f"{stats2['Ecart INF 2']:.1f}", 'Total': f"{stats2['Ecart INF T']:.1f}"},
+                {'Indicateur': 'Nb SUP', '1ère MT': f"{stats2['Nb SUP 1']:.1f}", '2ème MT': f"{stats2['Nb SUP 2']:.1f}", 'Total': f"{stats2['Nb SUP T']:.1f}"},
+                {'Indicateur': 'Écart SUP', '1ère MT': f"{stats2['Ecart SUP 1']:.1f}", '2ème MT': f"{stats2['Ecart SUP 2']:.1f}", 'Total': f"{stats2['Ecart SUP T']:.1f}"},
                 {'Indicateur': 'Moy DMA BHB', '1ère MT': f"{stats2['Moy DMA BHB 1']:.3f}", '2ème MT': f"{stats2['Moy DMA BHB 2']:.3f}", 'Total': f"{stats2['Moy DMA BHB T']:.3f}"},
                 {'Indicateur': 'Moy DMA ADV', '1ère MT': f"{stats2['Moy DMA ADV 1']:.3f}", '2ème MT': f"{stats2['Moy DMA ADV 2']:.3f}", 'Total': f"{stats2['Moy DMA ADV T']:.3f}"},
                 {'Indicateur': 'Rapport de Force', '1ère MT': f"{stats2['RdF 1']:.3f}", '2ème MT': f"{stats2['RdF 2']:.3f}", 'Total': f"{stats2['RdF T']:.3f}"},
