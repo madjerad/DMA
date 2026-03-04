@@ -34,103 +34,134 @@ def calculate_trend(x, y):
     return p(x)
 
 def calculate_general_stats(df, matches):
-    """Calcule les statistiques générales - VERSION OPTIMISÉE"""
+    """Calcule les statistiques générales en MOYENNE PAR MATCH (DMA déjà en moyenne).
+    Note: les ratios/efficacités sont moyennés par match (non pondérés).
+    """
     if df is None or len(matches) == 0:
         return None
-    
+
     filtered_df = df[df['Match'].isin(matches)].copy()
     if len(filtered_df) == 0:
         return None
-    
-    stats = {}
-    
-    # Séparer par mi-temps
-    mt1 = filtered_df[filtered_df['Minute'] <= 30]
-    mt2 = filtered_df[filtered_df['Minute'] > 30]
-    
-    for period_data, suffix in [(mt1, '1'), (mt2, '2'), (filtered_df, 'T')]:
-        if len(period_data) == 0:
-            continue
-        
+
+    def _period_stats(period_data):
+        """Stats d'une période pour UN match (mt1 / mt2 / total)."""
+        if period_data is None or len(period_data) == 0:
+            return None
+
         bhb_data = period_data[period_data['Equipe'] == 'BHB']
         adv_data = period_data[period_data['Equipe'] == 'ADV']
-        
-        # Buts
-        buts_bhb = int(bhb_data['Issue'].sum())
-        buts_adv = int(adv_data['Issue'].sum())
-        stats[f'Buts BHB {suffix}'] = buts_bhb
-        stats[f'Buts ADV {suffix}'] = buts_adv
-        
-        # Possessions
-        stats[f'Poss BHB {suffix}'] = len(bhb_data)
-        stats[f'Poss ADV {suffix}'] = len(adv_data)
-        stats[f'Poss Total {suffix}'] = len(period_data)
-        
-        # Rythme
-        duree = 30 if suffix != 'T' else 60
-        stats[f'Rythme {suffix}'] = len(period_data) / duree
-        
-        # Ratios
-        stats[f'Ratio But/Poss {suffix}'] = (buts_bhb / len(bhb_data)) if len(bhb_data) > 0 else 0
-        stats[f'Eff Def {suffix}'] = ((len(adv_data) - buts_adv) / len(adv_data)) if len(adv_data) > 0 else 0
-        
+
+        buts_bhb = float(bhb_data['Issue'].sum())
+        buts_adv = float(adv_data['Issue'].sum())
+
+        poss_bhb = float(len(bhb_data))
+        poss_adv = float(len(adv_data))
+        poss_total = float(len(period_data))
+
+        stats = {}
+        stats['Buts BHB'] = buts_bhb
+        stats['Buts ADV'] = buts_adv
+        stats['Poss BHB'] = poss_bhb
+        stats['Poss ADV'] = poss_adv
+        stats['Poss Total'] = poss_total
+
+        # Ratios / Eff (calculés sur le match, puis moyennés entre matchs)
+        stats['Ratio But/Poss'] = (buts_bhb / poss_bhb) if poss_bhb > 0 else 0.0
+        stats['Eff Def'] = ((poss_adv - buts_adv) / poss_adv) if poss_adv > 0 else 0.0
+
         # Déchet
-        dechet = len(bhb_data[(bhb_data['Tireur'].isna()) | (bhb_data['Tireur'] == 0)])
-        stats[f'Déchet {suffix}'] = dechet
-        
-        tirs_effectifs = len(bhb_data) - dechet
-        stats[f'Eff Tir {suffix}'] = (buts_bhb / tirs_effectifs) if tirs_effectifs > 0 else 0
-        stats[f'Ratio Perte {suffix}'] = (dechet / len(bhb_data)) if len(bhb_data) > 0 else 0
-        
-        # DMA
+        dechet = float(len(bhb_data[(bhb_data['Tireur'].isna()) | (bhb_data['Tireur'] == 0)]))
+        stats['Déchet'] = dechet
+
+        tirs_effectifs = poss_bhb - dechet
+        stats['Eff Tir'] = (buts_bhb / tirs_effectifs) if tirs_effectifs > 0 else 0.0
+        stats['Ratio Perte'] = (dechet / poss_bhb) if poss_bhb > 0 else 0.0
+
+        # DMA (déjà des moyennes)
         dma_bhb_vals = bhb_data['DMA BHB'].dropna()
         dma_adv_vals = adv_data['DMA ADV'].dropna()
-        
-        stats[f'Moy DMA BHB {suffix}'] = dma_bhb_vals.mean() if len(dma_bhb_vals) > 0 else 0
-        stats[f'ET DMA BHB {suffix}'] = dma_bhb_vals.std() if len(dma_bhb_vals) > 0 else 0
-        stats[f'Moy DMA ADV {suffix}'] = dma_adv_vals.mean() if len(dma_adv_vals) > 0 else 0
-        stats[f'ET DMA ADV {suffix}'] = dma_adv_vals.std() if len(dma_adv_vals) > 0 else 0
-        stats[f'RdF {suffix}'] = stats[f'Moy DMA BHB {suffix}'] - stats[f'Moy DMA ADV {suffix}']
-        
-        # INF/SUP - VERSION OPTIMISÉE avec groupby
-        # Compter le nombre de changements INF -> pas INF
-        period_data_sorted = period_data.sort_index()
-        
-        # INF
-        inf_mask = (period_data_sorted['INF'] == 'INF')
+
+        stats['Moy DMA BHB'] = float(dma_bhb_vals.mean()) if len(dma_bhb_vals) > 0 else 0.0
+        stats['ET DMA BHB'] = float(dma_bhb_vals.std()) if len(dma_bhb_vals) > 0 else 0.0
+        stats['Moy DMA ADV'] = float(dma_adv_vals.mean()) if len(dma_adv_vals) > 0 else 0.0
+        stats['ET DMA ADV'] = float(dma_adv_vals.std()) if len(dma_adv_vals) > 0 else 0.0
+        stats['RdF'] = stats['Moy DMA BHB'] - stats['Moy DMA ADV']
+
+        # INF / SUP : comptage par match (important)
+        period_sorted = period_data.sort_index()
+
+        inf_mask = (period_sorted['INF'] == 'INF')
         inf_changes = inf_mask.astype(int).diff().fillna(0)
-        nb_inf = (inf_changes == 1).sum()  # Nombre de débuts de séquence
-        
-        # Calculer écart sur INF (simplifié)
-        inf_possessions = period_data_sorted[inf_mask]
+        nb_inf = float((inf_changes == 1).sum())
+
+        inf_possessions = period_sorted[inf_mask]
         if len(inf_possessions) > 0:
             bhb_inf = inf_possessions[(inf_possessions['Equipe'] == 'BHB') & (inf_possessions['Issue'] == 1)]
             adv_inf = inf_possessions[(inf_possessions['Equipe'] == 'ADV') & (inf_possessions['Issue'] == 1)]
-            ecart_inf = len(bhb_inf) - len(adv_inf)
+            ecart_inf = float(len(bhb_inf) - len(adv_inf))
         else:
-            ecart_inf = 0
-        
-        # SUP
-        sup_mask = (period_data_sorted['SUP'] == 'SUP')
+            ecart_inf = 0.0
+
+        sup_mask = (period_sorted['SUP'] == 'SUP')
         sup_changes = sup_mask.astype(int).diff().fillna(0)
-        nb_sup = (sup_changes == 1).sum()
-        
-        sup_possessions = period_data_sorted[sup_mask]
+        nb_sup = float((sup_changes == 1).sum())
+
+        sup_possessions = period_sorted[sup_mask]
         if len(sup_possessions) > 0:
             bhb_sup = sup_possessions[(sup_possessions['Equipe'] == 'BHB') & (sup_possessions['Issue'] == 1)]
             adv_sup = sup_possessions[(sup_possessions['Equipe'] == 'ADV') & (sup_possessions['Issue'] == 1)]
-            ecart_sup = len(bhb_sup) - len(adv_sup)
+            ecart_sup = float(len(bhb_sup) - len(adv_sup))
         else:
-            ecart_sup = 0
-        
-        stats[f'Nb INF {suffix}'] = int(nb_inf)
-        stats[f'Nb SUP {suffix}'] = int(nb_sup)
-        stats[f'Ecart INF {suffix}'] = ecart_inf
-        stats[f'Ecart SUP {suffix}'] = ecart_sup
-        stats[f'Moy Ecart INF {suffix}'] = (ecart_inf / nb_inf) if nb_inf > 0 else 0
-        stats[f'Moy Ecart SUP {suffix}'] = (ecart_sup / nb_sup) if nb_sup > 0 else 0
-    
-    return stats
+            ecart_sup = 0.0
+
+        stats['Nb INF'] = nb_inf
+        stats['Nb SUP'] = nb_sup
+        stats['Ecart INF'] = ecart_inf
+        stats['Ecart SUP'] = ecart_sup
+        stats['Moy Ecart INF'] = (ecart_inf / nb_inf) if nb_inf > 0 else 0.0
+        stats['Moy Ecart SUP'] = (ecart_sup / nb_sup) if nb_sup > 0 else 0.0
+
+        return stats
+
+    # Collecte match par match
+    per_match = {'1': [], '2': [], 'T': []}
+
+    for m in matches:
+        mdf = filtered_df[filtered_df['Match'] == m]
+        if len(mdf) == 0:
+            continue
+
+        mt1 = mdf[mdf['Minute'] <= 30]
+        mt2 = mdf[mdf['Minute'] > 30]
+
+        s1 = _period_stats(mt1)
+        s2 = _period_stats(mt2)
+        sT = _period_stats(mdf)
+
+        if s1 is not None:
+            # Rythme: possessions / durée (par match)
+            s1['Rythme'] = float(len(mt1)) / 30.0
+            per_match['1'].append(s1)
+        if s2 is not None:
+            s2['Rythme'] = float(len(mt2)) / 30.0
+            per_match['2'].append(s2)
+        if sT is not None:
+            sT['Rythme'] = float(len(mdf)) / 60.0
+            per_match['T'].append(sT)
+
+    # Agrégation: moyenne simple entre matchs
+    out = {}
+    for suffix, rows in per_match.items():
+        if len(rows) == 0:
+            continue
+
+        keys = rows[0].keys()
+        for k in keys:
+            vals = [r.get(k, 0.0) for r in rows]
+            out[f'{k} {suffix}'] = float(np.mean(vals)) if len(vals) > 0 else 0.0
+
+    return out
 
 def calculate_shooter_stats(df, matches):
     """Calcule stats buteurs - VERSION OPTIMISÉE"""
@@ -221,7 +252,7 @@ def chart(d1, d2, l1, l2, metric, title, show_trend=False):
     )
     return fig
 
-st.title("🤾 BHB Analytics")
+st.title("BHB Analytics")
 
 # Chargement
 df = None
@@ -312,6 +343,7 @@ with t4:
         stats1 = calculate_general_stats(df, matches1)
         if stats1:
             data1 = [
+              
                 {'Indicateur': 'Score', '1ère MT': f"{stats1['Buts BHB 1']}-{stats1['Buts ADV 1']}", 
                  '2ème MT': f"{stats1['Buts BHB 2']}-{stats1['Buts ADV 2']}", 'Total': f"{stats1['Buts BHB T']}-{stats1['Buts ADV T']}"},
                 {'Indicateur': 'Buts Pour', '1ère MT': stats1['Buts BHB 1'], '2ème MT': stats1['Buts BHB 2'], 'Total': stats1['Buts BHB T']},
