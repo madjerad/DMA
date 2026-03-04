@@ -252,7 +252,7 @@ def chart(d1, d2, l1, l2, metric, title, show_trend=False):
     )
     return fig
 
-st.title("BHB Analytics")
+st.title("🤾 BHB Analytics")
 
 # Chargement
 df = None
@@ -344,20 +344,24 @@ with t4:
         if stats1:
             data1 = [
               
-                {'Indicateur': 'Score', '1ère MT': f"{stats1['Buts BHB 1']}-{stats1['Buts ADV 1']}", 
-                 '2ème MT': f"{stats1['Buts BHB 2']}-{stats1['Buts ADV 2']}", 'Total': f"{stats1['Buts BHB T']}-{stats1['Buts ADV T']}"},
-                {'Indicateur': 'Buts Pour', '1ère MT': stats1['Buts BHB 1'], '2ème MT': stats1['Buts BHB 2'], 'Total': stats1['Buts BHB T']},
-                {'Indicateur': 'Buts Contre', '1ère MT': stats1['Buts ADV 1'], '2ème MT': stats1['Buts ADV 2'], 'Total': stats1['Buts ADV T']},
-                {'Indicateur': 'Nb Possessions', '1ère MT': stats1['Poss Total 1'], '2ème MT': stats1['Poss Total 2'], 'Total': stats1['Poss Total T']},
-                {'Indicateur': 'Rythme', '1ère MT': f"{stats1['Rythme 1']:.2f}", '2ème MT': f"{stats1['Rythme 2']:.2f}", 'Total': f"{stats1['Rythme T']:.2f}"},
-                {'Indicateur': 'Ratio But/Poss', '1ère MT': f"{stats1['Ratio But/Poss 1']:.1%}", '2ème MT': f"{stats1['Ratio But/Poss 2']:.1%}", 'Total': f"{stats1['Ratio But/Poss T']:.1%}"},
-                {'Indicateur': 'Eff Défensive', '1ère MT': f"{stats1['Eff Def 1']:.1%}", '2ème MT': f"{stats1['Eff Def 2']:.1%}", 'Total': f"{stats1['Eff Def T']:.1%}"},
-                {'Indicateur': 'Eff Tir', '1ère MT': f"{stats1['Eff Tir 1']:.1%}", '2ème MT': f"{stats1['Eff Tir 2']:.1%}", 'Total': f"{stats1['Eff Tir T']:.1%}"},
-                {'Indicateur': 'Déchet Tech', '1ère MT': stats1['Déchet 1'], '2ème MT': stats1['Déchet 2'], 'Total': stats1['Déchet T']},
-                {'Indicateur': 'Nb INF', '1ère MT': stats1['Nb INF 1'], '2ème MT': stats1['Nb INF 2'], 'Total': stats1['Nb INF T']},
-                {'Indicateur': 'Écart INF', '1ère MT': stats1['Ecart INF 1'], '2ème MT': stats1['Ecart INF 2'], 'Total': stats1['Ecart INF T']},
-                {'Indicateur': 'Nb SUP', '1ère MT': stats1['Nb SUP 1'], '2ème MT': stats1['Nb SUP 2'], 'Total': stats1['Nb SUP T']},
-                {'Indicateur': 'Écart SUP', '1ère MT': stats1['Ecart SUP 1'], '2ème MT': stats1['Ecart SUP 2'], 'Total': stats1['Ecart SUP T']},
+                {'Indicateur': 'Score','1ère MT': f"{stats1['Buts BHB 1']:.1f}-{stats1['Buts ADV 1']:.1f}",'2ème MT': f"{stats1['Buts BHB 2']:.1f}-{stats1['Buts ADV 2']:.1f}",
+ 'Total':  f"{stats1['Buts BHB T']:.1f}-{stats1['Buts ADV T']:.1f}"},
+{'Indicateur': 'Buts Pour',
+ '1ère MT': f"{stats1['Buts BHB 1']:.1f}", '2ème MT': f"{stats1['Buts BHB 2']:.1f}", 'Total': f"{stats1['Buts BHB T']:.1f}"},
+{'Indicateur': 'Buts Contre',
+ '1ère MT': f"{stats1['Buts ADV 1']:.1f}", '2ème MT': f"{stats1['Buts ADV 2']:.1f}", 'Total': f"{stats1['Buts ADV T']:.1f}"},
+{'Indicateur': 'Nb Possessions',
+ '1ère MT': f"{stats1['Poss Total 1']:.1f}", '2ème MT': f"{stats1['Poss Total 2']:.1f}", 'Total': f"{stats1['Poss Total T']:.1f}"},
+{'Indicateur': 'Déchet Tech',
+ '1ère MT': f"{stats1['Déchet 1']:.1f}", '2ème MT': f"{stats1['Déchet 2']:.1f}", 'Total': f"{stats1['Déchet T']:.1f}"},
+{'Indicateur': 'Nb INF',
+ '1ère MT': f"{stats1['Nb INF 1']:.1f}", '2ème MT': f"{stats1['Nb INF 2']:.1f}", 'Total': f"{stats1['Nb INF T']:.1f}"},
+{'Indicateur': 'Écart INF',
+ '1ère MT': f"{stats1['Ecart INF 1']:.1f}", '2ème MT': f"{stats1['Ecart INF 2']:.1f}", 'Total': f"{stats1['Ecart INF T']:.1f}"},
+{'Indicateur': 'Nb SUP',
+ '1ère MT': f"{stats1['Nb SUP 1']:.1f}", '2ème MT': f"{stats1['Nb SUP 2']:.1f}", 'Total': f"{stats1['Nb SUP T']:.1f}"},
+{'Indicateur': 'Écart SUP',
+ '1ère MT': f"{stats1['Ecart SUP 1']:.1f}", '2ème MT': f"{stats1['Ecart SUP 2']:.1f}", 'Total': f"{stats1['Ecart SUP T']:.1f}"},
                 {'Indicateur': 'Moy DMA BHB', '1ère MT': f"{stats1['Moy DMA BHB 1']:.3f}", '2ème MT': f"{stats1['Moy DMA BHB 2']:.3f}", 'Total': f"{stats1['Moy DMA BHB T']:.3f}"},
                 {'Indicateur': 'Moy DMA ADV', '1ère MT': f"{stats1['Moy DMA ADV 1']:.3f}", '2ème MT': f"{stats1['Moy DMA ADV 2']:.3f}", 'Total': f"{stats1['Moy DMA ADV T']:.3f}"},
                 {'Indicateur': 'Rapport de Force', '1ère MT': f"{stats1['RdF 1']:.3f}", '2ème MT': f"{stats1['RdF 2']:.3f}", 'Total': f"{stats1['RdF T']:.3f}"},
@@ -369,20 +373,25 @@ with t4:
         stats2 = calculate_general_stats(df, matches2)
         if stats2:
             data2 = [
-                {'Indicateur': 'Score', '1ère MT': f"{stats2['Buts BHB 1']}-{stats2['Buts ADV 1']}", 
-                 '2ème MT': f"{stats2['Buts BHB 2']}-{stats2['Buts ADV 2']}", 'Total': f"{stats2['Buts BHB T']}-{stats2['Buts ADV T']}"},
-                {'Indicateur': 'Buts Pour', '1ère MT': stats2['Buts BHB 1'], '2ème MT': stats2['Buts BHB 2'], 'Total': stats2['Buts BHB T']},
-                {'Indicateur': 'Buts Contre', '1ère MT': stats2['Buts ADV 1'], '2ème MT': stats2['Buts ADV 2'], 'Total': stats2['Buts ADV T']},
-                {'Indicateur': 'Nb Possessions', '1ère MT': stats2['Poss Total 1'], '2ème MT': stats2['Poss Total 2'], 'Total': stats2['Poss Total T']},
-                {'Indicateur': 'Rythme', '1ère MT': f"{stats2['Rythme 1']:.2f}", '2ème MT': f"{stats2['Rythme 2']:.2f}", 'Total': f"{stats2['Rythme T']:.2f}"},
-                {'Indicateur': 'Ratio But/Poss', '1ère MT': f"{stats2['Ratio But/Poss 1']:.1%}", '2ème MT': f"{stats2['Ratio But/Poss 2']:.1%}", 'Total': f"{stats2['Ratio But/Poss T']:.1%}"},
-                {'Indicateur': 'Eff Défensive', '1ère MT': f"{stats2['Eff Def 1']:.1%}", '2ème MT': f"{stats2['Eff Def 2']:.1%}", 'Total': f"{stats2['Eff Def T']:.1%}"},
-                {'Indicateur': 'Eff Tir', '1ère MT': f"{stats2['Eff Tir 1']:.1%}", '2ème MT': f"{stats2['Eff Tir 2']:.1%}", 'Total': f"{stats2['Eff Tir T']:.1%}"},
-                {'Indicateur': 'Déchet Tech', '1ère MT': stats2['Déchet 1'], '2ème MT': stats2['Déchet 2'], 'Total': stats2['Déchet T']},
-                {'Indicateur': 'Nb INF', '1ère MT': stats2['Nb INF 1'], '2ème MT': stats2['Nb INF 2'], 'Total': stats2['Nb INF T']},
-                {'Indicateur': 'Écart INF', '1ère MT': stats2['Ecart INF 1'], '2ème MT': stats2['Ecart INF 2'], 'Total': stats2['Ecart INF T']},
-                {'Indicateur': 'Nb SUP', '1ère MT': stats2['Nb SUP 1'], '2ème MT': stats2['Nb SUP 2'], 'Total': stats2['Nb SUP T']},
-                {'Indicateur': 'Écart SUP', '1ère MT': stats2['Ecart SUP 1'], '2ème MT': stats2['Ecart SUP 2'], 'Total': stats2['Ecart SUP T']},
+               
+                {'Indicateur': 'Score','1ère MT': f"{stats2['Buts BHB 1']:.1f}-{stats2['Buts ADV 1']:.1f}",'2ème MT': f"{stats2['Buts BHB 2']:.1f}-{stats2['Buts ADV 2']:.1f}",
+ 'Total':  f"{stats2['Buts BHB T']:.1f}-{stats2['Buts ADV T']:.1f}"},
+{'Indicateur': 'Buts Pour',
+ '1ère MT': f"{stats2['Buts BHB 1']:.1f}", '2ème MT': f"{stats2['Buts BHB 2']:.1f}", 'Total': f"{stats2['Buts BHB T']:.1f}"},
+{'Indicateur': 'Buts Contre',
+ '1ère MT': f"{stats2['Buts ADV 1']:.1f}", '2ème MT': f"{stats2['Buts ADV 2']:.1f}", 'Total': f"{stats2['Buts ADV T']:.1f}"},
+{'Indicateur': 'Nb Possessions',
+ '1ère MT': f"{stats2['Poss Total 1']:.1f}", '2ème MT': f"{stats2['Poss Total 2']:.1f}", 'Total': f"{stats2['Poss Total T']:.1f}"},
+{'Indicateur': 'Déchet Tech',
+ '1ère MT': f"{stats2['Déchet 1']:.1f}", '2ème MT': f"{stats2['Déchet 2']:.1f}", 'Total': f"{stats2['Déchet T']:.1f}"},
+{'Indicateur': 'Nb INF',
+ '1ère MT': f"{stats2['Nb INF 1']:.1f}", '2ème MT': f"{stats2['Nb INF 2']:.1f}", 'Total': f"{stats2['Nb INF T']:.1f}"},
+{'Indicateur': 'Écart INF',
+ '1ère MT': f"{stats2['Ecart INF 1']:.1f}", '2ème MT': f"{stats2['Ecart INF 2']:.1f}", 'Total': f"{stats2['Ecart INF T']:.1f}"},
+{'Indicateur': 'Nb SUP',
+ '1ère MT': f"{stats2['Nb SUP 1']:.1f}", '2ème MT': f"{stats2['Nb SUP 2']:.1f}", 'Total': f"{stats2['Nb SUP T']:.1f}"},
+{'Indicateur': 'Écart SUP',
+ '1ère MT': f"{stats2['Ecart SUP 1']:.1f}", '2ème MT': f"{stats2['Ecart SUP 2']:.1f}", 'Total': f"{stats2['Ecart SUP T']:.1f}"},
                 {'Indicateur': 'Moy DMA BHB', '1ère MT': f"{stats2['Moy DMA BHB 1']:.3f}", '2ème MT': f"{stats2['Moy DMA BHB 2']:.3f}", 'Total': f"{stats2['Moy DMA BHB T']:.3f}"},
                 {'Indicateur': 'Moy DMA ADV', '1ère MT': f"{stats2['Moy DMA ADV 1']:.3f}", '2ème MT': f"{stats2['Moy DMA ADV 2']:.3f}", 'Total': f"{stats2['Moy DMA ADV T']:.3f}"},
                 {'Indicateur': 'Rapport de Force', '1ère MT': f"{stats2['RdF 1']:.3f}", '2ème MT': f"{stats2['RdF 2']:.3f}", 'Total': f"{stats2['RdF T']:.3f}"},
