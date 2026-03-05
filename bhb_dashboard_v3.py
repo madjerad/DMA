@@ -261,29 +261,27 @@ def calculate_shooter_stats(df, matches):
     
     return result
 
-def color_ratio(val):
-    """Applique une couleur selon le % : <50% Rouge, 50% Orange, >50% Vert"""
-    if isinstance(val, str) and '%' in val:
-        pct = float(val.replace('%', ''))
-        if pct < 50:
-            return 'background-color: #ffcccc'  # Rouge clair
-        elif pct == 50:
-            return 'background-color: #ffe6cc'  # Orange clair
+def apply_colors(df_stats):
+    """Applique les couleurs de manière optimisée"""
+    def style_cell(val, indicator):
+        if indicator == 'Taux Déchet':
+            return color_dechet(val)
         else:
-            return 'background-color: #ccffcc'  # Vert clair
-    return ''
-
-def color_dechet(val):
-    """Applique une couleur pour le Taux de Déchet : <20% Vert, 20% Orange, >20% Rouge"""
-    if isinstance(val, str) and '%' in val:
-        pct = float(val.replace('%', ''))
-        if pct < 20:
-            return 'background-color: #ccffcc'  # Vert clair
-        elif pct == 20:
-            return 'background-color: #ffe6cc'  # Orange clair
-        else:
-            return 'background-color: #ffcccc'  # Rouge clair
-    return ''
+            return color_ratio(val)
+    
+    # Créer un styler
+    styler = df_stats.style
+    
+    # Appliquer les couleurs ligne par ligne
+    for idx in df_stats.index:
+        indicator = df_stats.loc[idx, 'Indicateur']
+        for col in ['1ère MT', '2ème MT', 'Total']:
+            val = df_stats.loc[idx, col]
+            style = style_cell(val, indicator)
+            if style:
+                styler = styler.applymap(lambda x: style, subset=pd.IndexSlice[idx, col])
+    
+    return styler
 
 def chart(d1, d2, l1, l2, metric, title, show_trend=False):
     fig = go.Figure()
