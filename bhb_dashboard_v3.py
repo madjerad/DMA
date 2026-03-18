@@ -210,12 +210,12 @@ if d1 is None and d2 is None:
     st.stop()
 
 with t1:
-    st.plotly_chart(chart(d1, d2, label1, label2, 'DMA BHB', 'DMA BHB'), width=None)
+    st.plotly_chart(chart(d1, d2, label1, label2, 'DMA BHB', 'DMA BHB'), width='stretch')
 with t2:
-    st.plotly_chart(chart(d1, d2, label1, label2, 'DMA ADV', 'DMA ADV'), width=None)
+    st.plotly_chart(chart(d1, d2, label1, label2, 'DMA ADV', 'DMA ADV'), width='stretch')
 with t3:
     show_trend = st.checkbox("Afficher tendances", value=True)
-    st.plotly_chart(chart(d1, d2, label1, label2, 'Rapport de force', 'Rapport de Force', show_trend), width=None)
+    st.plotly_chart(chart(d1, d2, label1, label2, 'Rapport de force', 'Rapport de Force', show_trend), width='stretch')
 
 with t4:
     st.markdown("### 📋 Statistiques Générales")
@@ -329,12 +329,12 @@ with t5:
         st.markdown(f"#### {label1}")
         shooters1 = calculate_shooter_stats(df, matches1)
         if shooters1 is not None and len(shooters1) > 0:
-            st.dataframe(shooters1.style.format({'Eff 1': '{:.1%}', 'Eff 2': '{:.1%}', 'Eff Total': '{:.1%}'}), width=None, hide_index=True, height=600)
+            st.dataframe(shooters1.style.format({'Eff 1': '{:.1%}', 'Eff 2': '{:.1%}', 'Eff Total': '{:.1%}'}), width='stretch', hide_index=True, height=600)
     with col_s2:
         st.markdown(f"#### {label2}")
         shooters2 = calculate_shooter_stats(df, matches2)
         if shooters2 is not None and len(shooters2) > 0:
-            st.dataframe(shooters2.style.format({'Eff 1': '{:.1%}', 'Eff 2': '{:.1%}', 'Eff Total': '{:.1%}'}), width=None, hide_index=True, height=600)
+            st.dataframe(shooters2.style.format({'Eff 1': '{:.1%}', 'Eff 2': '{:.1%}', 'Eff Total': '{:.1%}'}), width='stretch', hide_index=True, height=600)
 
 st.markdown("---")
 st.markdown("*BHB Analytics v4.5*")
